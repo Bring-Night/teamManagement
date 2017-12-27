@@ -1,4 +1,4 @@
-package com.zhy.team.controller;
+package com.zhy.team.bean;
 
 import java.util.Date;
 
