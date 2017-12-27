@@ -1,0 +1,71 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- status : 这个用于设置log4j2自身内部的信息输出,可以不设置,当设置成trace时,会看到log4j2内部各种详细输出, 这一行我设置为OFF,表示不记录log4j2本身的日志 
+	monitorInterval: Log4j能够自动检测修改配置文件和重新配置本身, 设置间隔秒数。 -->
+<Configuration status="off" monitorInterval="1800">
+
+	<Properties>
+		<!-- 日志基础路径 -->
+		<Property name="BASEPATH">${sys:catalina.base}/logs</Property>
+		<!-- 日志文件名称 -->
+		<Property name="LOG_FILENAME">gisPlatform.log</Property>
+		<!-- 日志保存天数 -->
+		<Property name="LOG_SAVED_DATE">10d</Property>
+		<!-- 日志输出格式 -->
+		<Property name="LOG_PATTERN_LAYOUT">%d{yyyy-MM-dd HH:mm:ss.SSS} [ %level ] [ %thread ] %class{36} - %M %L - %msg%xEx%n</Property>
+	</Properties>
+
+	<Appenders>
+		<!--这个输出控制台的配置 -->
+		<Console name="Console" target="SYSTEM_OUT">
+			<!-- 控制台只输出level及以上级别的信息(onMatch),其他的直接拒绝(onMismatch) -->
+			<ThresholdFilter level="trace" onMatch="ACCEPT"
+				onMismatch="DENY" />
+			<!-- 输出日志的格式 -->
+			<PatternLayout pattern="${LOG_PATTERN_LAYOUT}" />
+		</Console>
+
+		<!-- 按天备份一个日志 -->    
+        <!-- fileName为生成的文件名，也可以采用相对路径模式，filePattern为时间到达后产生新日志，旧日志的文件名 -->  
+		<RollingFile name="RollingFile" fileName="${BASEPATH}/${LOG_FILENAME}" filePattern="${BASEPATH}/${LOG_FILENAME}_%d{yyyy-MM-dd}.log">
+			<!-- 日志输出格式 -->
+			<PatternLayout pattern="${LOG_PATTERN_LAYOUT}" />
+			<Policies>
+				<!-- 每1天更新一次，此处查阅网上和官方示例中，都是以小时出现，我测试是以天为单位。（官方文档中说明按item类型是否是小时，但没找到在哪里设置item类型）另有其他各类型策略，请参阅官方文档 -->
+				<!-- TimeBasedTriggeringPolicy需要和filePattern配套使用，由于filePattern配置的时间最小粒度是dd天，所以表示每一天新建一个文件保存日志。
+				SizeBasedTriggeringPolicy表示当文件大小大于指定size时，生成新的文件保存日志。 -->
+				<TimeBasedTriggeringPolicy modulate="true" interval="1" />
+			</Policies>
+			<!-- 最多备份10天以内的日志，此处为策略限制，Delete中可以按自己需要用正则表达式编写 -->    
+        	<!-- DefaultRolloverStrategy字段中加入max="30"经测试是配合SizeBasedTriggeringPolicy限制%i的存在数量，并没有发现是网上流传的是最多保存多少个文件的限制，也或许是我写的有问题 -->    
+         	<DefaultRolloverStrategy>
+         		<!-- log4j2.5版本之后才支持 -->
+        		<Delete basePath="${BASEPATH}" maxDepth="1">
+                     <IfFileName glob="${LOG_FILENAME}_*.log" />
+                     <!-- 日志保存天数 --> 
+                     <IfLastModified age="${LOG_SAVED_DATE}" />
+            	</Delete>    
+            </DefaultRolloverStrategy>    
+		</RollingFile>
+
+	</Appenders>
+
+	<Loggers>
+		<!-- 配置日志的根节点 -->
+		<!-- 然后定义logger，只有定义了logger并引入的appender，appender才会生效 -->
+		<root level="debug"><!-- level设置为info后，mybatis就没有SQL日志输出了，暂时未找到原因 -->
+			<appender-ref ref="Console" />
+			<appender-ref ref="RollingFile" />
+		</root>
+
+		<!--过滤掉spring和mybatis的一些无用的DEBUG信息-->
+        <logger name="org.mybatis" level="INFO"></logger>
+        <logger name="org.apache.ibatis.io" level="INFO"></logger>
+		<logger name="org.springframework" level="INFO"></logger>
+        <logger name="druid.sql.Connection" level="INFO"></logger>
+        <logger name="druid.sql.DataSource" level="INFO"></logger>
+        <logger name="druid.sql.Statement" level="INFO"></logger>
+        <logger name="druid.sql.ResultSet" level="INFO"></logger>
+
+	</Loggers>
+
+</Configuration>
